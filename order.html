@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Оформление заказа</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html#services">Услуги</a></li>
+        <li><a href="catalog.html">Каталог</a></li>
+        <li><a href="index.html#reviews">Отзывы</a></li>
+        <li><a href="index.html#contacts">Контакты</a></li>
+      </ul>
+
+      <div class="logo">
+        <a href="index.html"><img src="logo.png" alt="Логотип"></a>
+      </div>
+
+      <p class="phone">Звоните: 8 (987) 65 432 10</p>
+    </nav>
+  </header>
+
+  <main class="order-page">
+    <form class="order-form" action="#" method="post" novalidate>
+
+      <!-- Появляется, если заказ оформляют из каталога -->
+      <p class="order-selected" id="orderSelected" hidden></p>
+      <input type="hidden" name="model" id="modelInput">
+
+      <div class="order-field">
+        <label class="order-label" for="name">Имя</label>
+        <input class="order-input" type="text" id="name" name="name" placeholder="Иван">
+        <p class="order-error" id="nameError"></p>
+      </div>
+
+      <div class="order-field">
+        <label class="order-label" for="email">Email</label>
+        <input class="order-input" type="text" id="email" name="email" placeholder="example@mail.ru">
+        <p class="order-error" id="emailError"></p>
+      </div>
+
+      <div class="order-field">
+        <label class="order-label" for="phone">Номер</label>
+        <input class="order-input" type="tel" id="phone" name="phone" placeholder="+7 (999) 123-45-67">
+        <p class="order-error" id="phoneError"></p>
+      </div>
+
+      <!-- Блок выбора варианта скрывается, если модель выбрана в каталоге -->
+      <div id="variantsBlock">
+      <p class="order-variants-title">Выберите необходимый вариант:</p>
+
+      <div class="order-variants">
+        <label class="radio-row">
+          <input type="radio" name="variant" value="Игровой ПК">
+          <span>Игровой ПК</span>
+        </label>
+
+        <label class="radio-row">
+          <input type="radio" name="variant" value="Рабочий ПК">
+          <span>Рабочий ПК</span>
+        </label>
+
+        <label class="radio-row">
+          <input type="radio" name="variant" value="Стриминг/Монтаж">
+          <span>Стриминг/Монтаж</span>
+        </label>
+
+        <label class="radio-row">
+          <input type="radio" name="variant" value="Апгрейд существующего ПК">
+          <span>Апгрейд существующего ПК</span>
+        </label>
+
+        <label class="radio-row">
+          <input type="radio" name="variant" value="Своя конфигурация">
+          <span>Своя конфигурация</span>
+        </label>
+      </div>
+      <p class="order-error order-error-variants" id="variantError"></p>
+      </div>
+
+      <p class="order-error order-send-error" id="sendError"></p>
+      <button type="submit" class="order-submit-btn" id="submitBtn">Заказать</button>
+
+    </form>
+  </main>
+  
+  <div class="popup-overlay" id="popupOverlay">
+    <div class="popup-window">
+      <button class="popup-close" id="popupClose" aria-label="Закрыть">&times;</button>
+      <img src="logo.png" alt="Успех" class="popup-icon">
+      <h3 class="popup-title">Заказ успешно оформлен!</h3>
+      <p class="popup-text">Спасибо за вашу заявку! Мы отправили письмо с подтверждением на вашу почту. Наш менеджер свяжется с вами в ближайшее время.</p>
+      <button class="popup-ok-btn" id="popupOk">Хорошо</button>
+    </div>
+  </div>
+  
+  <!-- Библиотека EmailJS для отправки писем -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+  <script>
+    // ===== Настройки EmailJS (вставьте свои данные из личного кабинета emailjs.com) =====
+    const EMAILJS_PUBLIC_KEY  = "ВАШ_PUBLIC_KEY";
+    const EMAILJS_SERVICE_ID  = "ВАШ_SERVICE_ID";
+    const EMAILJS_TEMPLATE_ID = "ВАШ_TEMPLATE_ID";
+
+    const emailjsReady = !EMAILJS_PUBLIC_KEY.startsWith("ВАШ_");
+    if (emailjsReady) {
+      emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+    }
+
+    const orderForm   = document.querySelector(".order-form");
+    const popupOverlay = document.getElementById("popupOverlay");
+    const popupClose   = document.getElementById("popupClose");
+    const popupOk      = document.getElementById("popupOk");
+
+    // Подставляем модель из каталога (order.html?pc=...&type=...)
+    const params = new URLSearchParams(window.location.search);
+    const model = params.get("pc");
+    const type  = params.get("type");
+
+    if (model) {
+      const selected = document.getElementById("orderSelected");
+      const modelName = document.createElement("b");
+      modelName.textContent = "«" + model + "»";
+      const changeLink = document.createElement("a");
+      changeLink.href = "catalog.html";
+      changeLink.className = "order-change";
+      changeLink.textContent = "Выбрать другую";
+      selected.append("Выбранная модель: ", modelName, changeLink);
+      selected.hidden = false;
+      document.getElementById("modelInput").value = model;
+
+      // Модель уже выбрана — выбор варианта не нужен
+      document.getElementById("variantsBlock").hidden = true;
+    }
+
+    function selectType() {
+      if (!type) return;
+      document.querySelectorAll('input[name="variant"]').forEach(function (radio) {
+        if (radio.value === type) radio.checked = true;
+      });
+    }
+    selectType();
+
+    // ===== Валидация =====
+    const nameInput  = document.getElementById("name");
+    const emailInput = document.getElementById("email");
+    const phoneInput = document.getElementById("phone");
+    const submitBtn  = document.getElementById("submitBtn");
+    const sendError  = document.getElementById("sendError");
+
+    function showError(input, errorId, message) {
+      document.getElementById(errorId).textContent = message;
+      if (input) input.classList.toggle("invalid", message !== "");
+      return message === "";
+    }
+
+    function validateName() {
+      const value = nameInput.value.trim();
+      if (value === "") return showError(nameInput, "nameError", "Введите имя");
+      if (value.length < 2) return showError(nameInput, "nameError", "Имя слишком короткое");
+      if (!/^[A-Za-zА-Яа-яЁё\s-]+$/.test(value))
+        return showError(nameInput, "nameError", "Имя может содержать только буквы, пробел и дефис");
+      return showError(nameInput, "nameError", "");
+    }
+
+    function validateEmail() {
+      const value = emailInput.value.trim();
+      if (value === "") return showError(emailInput, "emailError", "Введите email");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value))
+        return showError(emailInput, "emailError", "Неверный формат email, например: example@mail.ru");
+      return showError(emailInput, "emailError", "");
+    }
+
+    function validatePhone() {
+      const value = phoneInput.value.trim();
+      const digits = value.replace(/\D/g, ""); // оставляем только цифры
+      if (value === "") return showError(phoneInput, "phoneError", "Введите номер телефона");
+      if (!/^[\d\s()+-]+$/.test(value))
+        return showError(phoneInput, "phoneError", "Номер может содержать только цифры, пробелы, скобки и дефис");
+      if (digits.length !== 11 || !/^[78]/.test(digits))
+        return showError(phoneInput, "phoneError", "Введите номер в формате +7 (999) 123-45-67 или 8 999 123 45 67");
+      return showError(phoneInput, "phoneError", "");
+    }
+
+    function validateVariant() {
+      if (model) return true; // модель выбрана в каталоге — вариант не нужен
+      const checked = document.querySelector('input[name="variant"]:checked');
+      return showError(null, "variantError", checked ? "" : "Выберите один из вариантов");
+    }
+
+    // Проверка поля, когда пользователь из него уходит, и сброс ошибки при вводе
+    [[nameInput, validateName], [emailInput, validateEmail], [phoneInput, validatePhone]].forEach(function (pair) {
+      const input = pair[0], validate = pair[1];
+      input.addEventListener("blur", validate);
+      input.addEventListener("input", function () {
+        if (input.classList.contains("invalid")) validate();
+      });
+    });
+
+    document.querySelectorAll('input[name="variant"]').forEach(function (radio) {
+      radio.addEventListener("change", validateVariant);
+    });
+
+    // ===== Отправка =====
+    orderForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      sendError.textContent = "";
+
+      // Проверяем все поля сразу, чтобы показать все ошибки
+      const results = [validateName(), validateEmail(), validatePhone(), validateVariant()];
+      if (results.includes(false)) {
+        const firstInvalid = orderForm.querySelector(".invalid");
+        if (firstInvalid) firstInvalid.focus();
+        return;
+      }
+
+      const checked = document.querySelector('input[name="variant"]:checked');
+
+      // Эти названия используются в шаблоне письма: {{name}}, {{email}} и т.д.
+      const templateParams = {
+        name:    nameInput.value.trim(),
+        email:   emailInput.value.trim(),
+        phone:   phoneInput.value.trim(),
+        model:   model || "Не выбрана",
+        variant: checked ? checked.value : "—"
+      };
+
+      if (!emailjsReady) {
+        console.warn("EmailJS не настроен — письмо не отправлено. Заполните ключи в начале скрипта.");
+        popupOverlay.classList.add("show");
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Отправка...";
+
+      emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams)
+        .then(function () {
+          popupOverlay.classList.add("show");
+        })
+        .catch(function (error) {
+          console.error("Ошибка EmailJS:", error);
+          sendError.textContent = "Не удалось отправить заявку. Попробуйте ещё раз или позвоните нам: 8 (987) 65 432 10";
+        })
+        .finally(function () {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Заказать";
+        });
+    });
+
+    function closePopup() {
+      popupOverlay.classList.remove("show");
+      orderForm.reset();
+      document.querySelectorAll(".invalid").forEach(function (el) { el.classList.remove("invalid"); });
+      document.querySelectorAll(".order-error").forEach(function (el) { el.textContent = ""; });
+      selectType(); // после сброса формы снова отмечаем тип из каталога
+    }
+
+    popupClose.addEventListener("click", closePopup);
+    popupOk.addEventListener("click", closePopup);
+
+    popupOverlay.addEventListener("click", function (event) {
+      if (event.target === popupOverlay) {
+        closePopup();
+      }
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && popupOverlay.classList.contains("show")) {
+        closePopup();
+      }
+    });
+  </script>
+
+  <footer>
+    <img src="logo.png" alt="Логотип">
+    <p>© Все права защищены.</p>
+    <a href="mailto:craft@pair.ru">craft@pair.ru</a>
+  </footer>
+
+</body>
+</html>
